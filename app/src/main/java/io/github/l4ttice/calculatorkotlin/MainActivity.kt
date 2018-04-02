@@ -5,6 +5,8 @@ import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import android.view.inputmethod.EditorInfo
 
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
@@ -128,7 +130,11 @@ class MainActivity : AppCompatActivity() {
             if (s.contains(Character.toString('(')) || s.contains(Character.toString(')')) ||
                     s.contains(Character.toString('(')) || s.contains(Character.toString(')'))) {
                 println("Error: incorrect brackets placement")
-                return "Error: incorrect brackets placement"
+                Snackbar.make(fab, "Error: incorrect brackets placement", Snackbar.LENGTH_LONG)
+                        .setAction("RESET", View.OnClickListener {
+                            editText.setText("")
+                        }).show()
+                return "Error"
             }
         }
         s = recognize(s)
@@ -173,16 +179,34 @@ class MainActivity : AppCompatActivity() {
             val txt = editText.text
             var out = ""
             out = calcBODMAS(txt.toString())
-            Snackbar.make(it, "Used BODMAS Rule", Snackbar.LENGTH_LONG)
-                    .setAction("Action", null).show()
-            editText.setText(out)
-            setCursor()
+            if (out != "Error") {
+                editText.setText(out)
+                setCursor()
+            } else {
+                setCursor()
+            }
+        }
+
+        BODMASswitch.isEnabled = false
+
+        editText.setOnEditorActionListener { v, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                val txt = editText.text
+                var out = ""
+                out = calcBODMAS(txt.toString())
+                editText.setText(out)
+                setCursor()
+                true
+            } else
+                false
+
         }
 
         button0.setOnClickListener{
             editText.text=editText.text.append('0')
             setCursor()
         }
+
         button1.setOnClickListener{
             editText.text=editText.text.append('1')
             setCursor()
