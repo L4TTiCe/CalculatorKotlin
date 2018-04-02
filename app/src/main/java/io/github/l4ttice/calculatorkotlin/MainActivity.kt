@@ -3,6 +3,7 @@ package io.github.l4ttice.calculatorkotlin
 import android.os.Bundle
 import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -19,6 +20,9 @@ class MainActivity : AppCompatActivity() {
 
     internal lateinit var contents: ArrayList<String>
     internal lateinit var item: String
+    var MAX_LENGTH = 11
+    var PAST_EXPRESSION = "";
+    var IS_ERROR = false
 
     fun recognize(s: String): String {              //method divide String on numbers and operators
         contents = ArrayList()         //holds numbers and operators
@@ -65,18 +69,27 @@ class MainActivity : AppCompatActivity() {
         var c = 0
         while (c < arrayList.size) {
             if (arrayList[c] == op1 || arrayList[c] == op2) {
-                if (arrayList[c] == "^") {
-                    result = BigDecimal(arrayList[c - 1]).pow(Integer.parseInt(arrayList[c + 1]))
-                } else if (arrayList[c] == "|") {
-                    result = BigDecimal(Math.sqrt(Double.parseDouble(arrayList[c + 1])))
-                } else if (arrayList[c] == "*") {
-                    result = BigDecimal(arrayList[c - 1]).multiply(BigDecimal(arrayList[c + 1]))
-                } else if (arrayList[c] == "/") {
-                    result = BigDecimal(arrayList[c - 1]).divide(BigDecimal(arrayList[c + 1]), scale, BigDecimal.ROUND_DOWN)
-                } else if (arrayList[c] == "+") {
-                    result = BigDecimal(arrayList[c - 1]).add(BigDecimal(arrayList[c + 1]))
-                } else if (arrayList[c] == "-") {
-                    result = BigDecimal(arrayList[c - 1]).subtract(BigDecimal(arrayList[c + 1]))
+                try {
+                    if (arrayList[c] == "^") {
+                        result = BigDecimal(arrayList[c - 1]).pow(Integer.parseInt(arrayList[c + 1]))
+                    } else if (arrayList[c] == "|") {
+                        result = BigDecimal(Math.sqrt(Double.parseDouble(arrayList[c + 1])))
+                    } else if (arrayList[c] == "*") {
+                        result = BigDecimal(arrayList[c - 1]).multiply(BigDecimal(arrayList[c + 1]))
+                    } else if (arrayList[c] == "/") {
+                        result = BigDecimal(arrayList[c - 1]).divide(BigDecimal(arrayList[c + 1]), scale, BigDecimal.ROUND_DOWN)
+                    } else if (arrayList[c] == "+") {
+                        result = BigDecimal(arrayList[c - 1]).add(BigDecimal(arrayList[c + 1]))
+                    } else if (arrayList[c] == "-") {
+                        result = BigDecimal(arrayList[c - 1]).subtract(BigDecimal(arrayList[c + 1]))
+                    }
+                } catch (e: Exception) {
+                    Snackbar.make(fab, "Error: Unbalanced Expression", Snackbar.LENGTH_LONG)
+                            .setAction("RESET", View.OnClickListener {
+                                editText.setText("")
+                            }).show()
+                    Log.d("DEBUG", "Expression faulty")
+                    IS_ERROR = true
                 }
                 try {       //in a case of to "out of range" ex
                     arrayList[c] = result.setScale(scale, RoundingMode.HALF_DOWN).stripTrailingZeros().toPlainString()
@@ -96,6 +109,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun calcBODMAS(input: String): String {
+        PAST_EXPRESSION = input
         return brackets(input)
     }
 
@@ -141,16 +155,6 @@ class MainActivity : AppCompatActivity() {
         return s
     }
 
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val input = Scanner(System.`in`)
-            println("Enter an operation: ")
-            val a = input.nextLine()
-
-        }
-    }
-
     fun setCursor() {
         val textLength = editText.text.length
         editText.setSelection(textLength,textLength)
@@ -177,10 +181,17 @@ class MainActivity : AppCompatActivity() {
 
         fab.setOnClickListener {
             val txt = editText.text
-            var out = ""
-            out = calcBODMAS(txt.toString())
-            if (out != "Error") {
+            var out = calcBODMAS(txt.toString())
+            if (out != "Error" && !IS_ERROR) {
+                if (out.length > MAX_LENGTH) {
+                    out = out.substring(0, MAX_LENGTH)
+                }
                 editText.setText(out)
+                setCursor()
+            } else if (IS_ERROR) {
+                editText.setText(PAST_EXPRESSION)
+                Log.d("DEBUG", "Reverted Expression")
+                IS_ERROR = false
                 setCursor()
             } else {
                 setCursor()
@@ -189,13 +200,24 @@ class MainActivity : AppCompatActivity() {
 
         BODMASswitch.isEnabled = false
 
-        editText.setOnEditorActionListener { v, actionId, event ->
+        editText.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 val txt = editText.text
-                var out = ""
-                out = calcBODMAS(txt.toString())
-                editText.setText(out)
-                setCursor()
+                var out = calcBODMAS(txt.toString())
+                if (out != "Error" && !IS_ERROR) {
+                    if (out.length > MAX_LENGTH) {
+                        out = out.substring(0, MAX_LENGTH)
+                    }
+                    editText.setText(out)
+                    setCursor()
+                } else if (IS_ERROR) {
+                    editText.setText(PAST_EXPRESSION)
+                    Log.d("DEBUG", "Reverted Expression")
+                    IS_ERROR = false
+                    setCursor()
+                } else {
+                    setCursor()
+                }
                 true
             } else
                 false
@@ -249,8 +271,10 @@ class MainActivity : AppCompatActivity() {
         }
         buttonAC.setOnClickListener{
             var temp = editText.text.toString()
-            temp = temp.substring(0, temp.length - 1)
-            editText.setText(temp)
+            if (temp.length > 0) {
+                temp = temp.substring(0, temp.length - 1)
+                editText.setText(temp)
+            }
             setCursor()
         }
         buttonDIV.setOnClickListener{
@@ -275,6 +299,14 @@ class MainActivity : AppCompatActivity() {
         }
         buttonbr2.setOnClickListener {
             editText.text = editText.text.append(')')
+            setCursor()
+        }
+        buttonEXP.setOnClickListener {
+            editText.text = editText.text.append('^')
+            setCursor()
+        }
+        buttonRST.setOnClickListener {
+            editText.setText("")
             setCursor()
         }
     }
